@@ -8,7 +8,7 @@ This is a proto file that defines the sphere errors framework with status codes 
 - Per-value error customization (status, reason, message)
 - Integration with HTTP status codes
 - Support for custom error messages and reasons
-- Designed for use with `protoc-gen-sphere-errors` plugin
+- Designed for use with [`protoc-gen-sphere-errors`](https://github.com/go-sphere/protoc-gen-sphere-errors) plugin
 
 ## Proto Definition
 
