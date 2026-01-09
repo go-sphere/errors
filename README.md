@@ -118,19 +118,28 @@ plugins:
 
 ## Generated Code Usage
 
-When used with `protoc-gen-sphere-errors`, the following Go code is generated:
+When used with `protoc-gen-sphere-errors`, the following Go methods are generated for each error enum:
+
+- `Error() string` - Returns the reason if specified, otherwise \"EnumName_VALUE_NAME\"
+- `GetCode() int32` - Returns the error code (enum numeric value)
+- `GetStatus() int32` - Returns the HTTP status code
+- `GetMessage() string` - Returns the human-readable message
+- `Join(errs ...error) error` - Wraps the enum error with additional errors
+- `JoinWithMessage(msg string, errs ...error) error` - Wraps with a custom message
+
+Usage examples:
 
 ```go
 // Direct error return
 return nil, apiv1.UserError_USER_ERROR_NOT_FOUND
 
-// With error wrapping
+// With error wrapping (puts the enum error first in the chain)
 if err != nil {
     return nil, apiv1.UserError_USER_ERROR_NOT_FOUND.Join(err)
 }
 
 // With custom message
-return nil, apiv1.UserError_USER_ERROR_NOT_FOUND.JoinWithMessage("User ID: 123", err)
+return nil, apiv1.UserError_USER_ERROR_NOT_FOUND.JoinWithMessage("User ID: 123 not found", err)
 ```
 
 ## Error Configuration Options
@@ -142,7 +151,7 @@ return nil, apiv1.UserError_USER_ERROR_NOT_FOUND.JoinWithMessage("User ID: 123",
 ### Enum Value Options
 
 - `status`: HTTP status code (overrides default_status)
-- `reason`: Optional machine-readable reason code
+- `reason`: Optional machine-readable reason code (used as the Error() string when provided; otherwise uses "EnumName_VALUE_NAME")
 - `message`: Human-readable error message for client display
 
 ## Best Practices
