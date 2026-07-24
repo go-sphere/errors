@@ -1,0 +1,26 @@
+name: Verify
+
+permissions:
+  contents: read
+
+on:
+  push:
+    branches: ["master"]
+  pull_request:
+    branches: ["master"]
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Install Buf
+        run: go install github.com/bufbuild/buf/cmd/buf@v1.72.0
+      - name: Verify
+        run: make verify
