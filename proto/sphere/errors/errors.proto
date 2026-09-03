@@ -7,16 +7,37 @@ import "google/protobuf/descriptor.proto";
 
 option go_package = "github.com/go-sphere/errors/sphere/errors";
 
+// Error defines error metadata for an enum value, specifying its HTTP status code,
+// reason identifier, and user-facing error message.
+//
+// Preconditions: status must be a valid HTTP status code (100-599). When status is 0,
+// code generators fall back to default_status, or 500 if default_status is unset.
+// Concurrency: Protobuf messages are not safe for concurrent mutation. Read-only access is safe.
+// Lifecycle: Instances returned by proto.GetExtension are shared descriptor values; do not mutate in-place.
+// Error semantics: Enum value 0 (<ENUM>_UNSPECIFIED) is reserved as non-error; returning it defaults to 500 Unknown.
+// Side-effects: Pure data definition; no background tasks or context manipulation.
 message Error {
+  // status is the HTTP status code (e.g. 400, 404, 500). If 0, code generators fall back
+  // to the enclosing enum's default_status (or 500 if unset). Valid range is 100-599.
   int32 status = 1;
+  // reason is a machine-readable error code or reason string (e.g. "USER_NOT_FOUND").
+  // If empty, code generators derive it from the enum and value name.
   string reason = 2;
+  // message is a human-readable, user-facing error message.
   string message = 3;
 }
 
 extend google.protobuf.EnumOptions {
+  // default_status specifies the fallback HTTP status code for all error values
+  // defined within this enum that do not specify their own status.
+  // Preconditions: Must be a valid HTTP status code (100-599).
+  // Concurrency: Extension descriptors are immutable after registration in init().
   int32 default_status = 18534200;
 }
 
 extend google.protobuf.EnumValueOptions {
+  // options configures status, reason, and message metadata for this specific enum value.
+  // Preconditions: Target Error message must provide valid status/reason/message fields.
+  // Concurrency: Extension descriptors are immutable after registration in init().
   Error options = 18534210;
 }
