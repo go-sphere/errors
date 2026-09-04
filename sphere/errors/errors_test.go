@@ -5,82 +5,111 @@ import (
 
 	"github.com/go-sphere/errors/sphere/errors"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/types/descriptorpb"
 )
 
-func TestError_GettersAndNilSafety(t *testing.T) {
-	var nilErr *errors.Error
-	if nilErr.GetStatus() != 0 {
-		t.Errorf("expected 0 for nil receiver GetStatus")
-	}
-	if nilErr.GetReason() != "" {
-		t.Errorf("expected empty string for nil receiver GetReason")
-	}
-	if nilErr.GetMessage() != "" {
-		t.Errorf("expected empty string for nil receiver GetMessage")
+func TestErrorDescriptor(t *testing.T) {
+	descriptor := (&errors.Error{}).ProtoReflect().Descriptor()
+	if got, want := descriptor.FullName(), protoreflect.FullName("sphere.errors.Error"); got != want {
+		t.Fatalf("full name = %q, want %q", got, want)
 	}
 
-	errObj := &errors.Error{
+	tests := []struct {
+		name   protoreflect.Name
+		number protoreflect.FieldNumber
+		kind   protoreflect.Kind
+	}{
+		{name: "status", number: 1, kind: protoreflect.Int32Kind},
+		{name: "reason", number: 2, kind: protoreflect.StringKind},
+		{name: "message", number: 3, kind: protoreflect.StringKind},
+	}
+	for _, tt := range tests {
+		t.Run(string(tt.name), func(t *testing.T) {
+			field := descriptor.Fields().ByName(tt.name)
+			if field == nil {
+				t.Fatalf("field %q not found", tt.name)
+			}
+			if got := field.Number(); got != tt.number {
+				t.Errorf("number = %d, want %d", got, tt.number)
+			}
+			if got := field.Kind(); got != tt.kind {
+				t.Errorf("kind = %s, want %s", got, tt.kind)
+			}
+		})
+	}
+}
+
+func TestExtensionDescriptors(t *testing.T) {
+	tests := []struct {
+		name        string
+		extension   protoreflect.ExtensionType
+		fullName    protoreflect.FullName
+		number      protoreflect.FieldNumber
+		kind        protoreflect.Kind
+		extendee    protoreflect.FullName
+		cardinality protoreflect.Cardinality
+	}{
+		{
+			name: "default_status", extension: errors.E_DefaultStatus,
+			fullName: "sphere.errors.default_status", number: 18534200,
+			kind: protoreflect.Int32Kind, extendee: "google.protobuf.EnumOptions",
+			cardinality: protoreflect.Optional,
+		},
+		{
+			name: "options", extension: errors.E_Options,
+			fullName: "sphere.errors.options", number: 18534210,
+			kind: protoreflect.MessageKind, extendee: "google.protobuf.EnumValueOptions",
+			cardinality: protoreflect.Optional,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			descriptor := tt.extension.TypeDescriptor()
+			if got := descriptor.FullName(); got != tt.fullName {
+				t.Errorf("full name = %q, want %q", got, tt.fullName)
+			}
+			if got := descriptor.Number(); got != tt.number {
+				t.Errorf("number = %d, want %d", got, tt.number)
+			}
+			if got := descriptor.Kind(); got != tt.kind {
+				t.Errorf("kind = %s, want %s", got, tt.kind)
+			}
+			if got := descriptor.ContainingMessage().FullName(); got != tt.extendee {
+				t.Errorf("extendee = %q, want %q", got, tt.extendee)
+			}
+			if got := descriptor.Cardinality(); got != tt.cardinality {
+				t.Errorf("cardinality = %s, want %s", got, tt.cardinality)
+			}
+		})
+	}
+}
+
+func TestExtensionsWireRoundTrip(t *testing.T) {
+	enumOptions := &descriptorpb.EnumOptions{}
+	proto.SetExtension(enumOptions, errors.E_DefaultStatus, int32(422))
+	assertProtoRoundTrip(t, enumOptions, &descriptorpb.EnumOptions{})
+
+	valueOptions := &descriptorpb.EnumValueOptions{}
+	proto.SetExtension(valueOptions, errors.E_Options, &errors.Error{
 		Status:  404,
-		Reason:  "NOT_FOUND",
-		Message: "Resource not found",
-	}
-	if errObj.GetStatus() != 404 {
-		t.Errorf("expected 404, got %d", errObj.GetStatus())
-	}
-	if errObj.GetReason() != "NOT_FOUND" {
-		t.Errorf("expected NOT_FOUND, got %s", errObj.GetReason())
-	}
-	if errObj.GetMessage() != "Resource not found" {
-		t.Errorf("expected Resource not found, got %s", errObj.GetMessage())
-	}
+		Reason:  "USER_NOT_FOUND",
+		Message: "user not found",
+	})
+	assertProtoRoundTrip(t, valueOptions, &descriptorpb.EnumValueOptions{})
 }
 
-func TestError_ProtoRoundTrip(t *testing.T) {
-	orig := &errors.Error{
-		Status:  400,
-		Reason:  "BAD_REQUEST",
-		Message: "Invalid input parameter",
-	}
+func assertProtoRoundTrip(t *testing.T, input, output proto.Message) {
+	t.Helper()
 
-	data, err := proto.Marshal(orig)
+	data, err := proto.Marshal(input)
 	if err != nil {
-		t.Fatalf("proto.Marshal failed: %v", err)
+		t.Fatalf("marshal: %v", err)
 	}
-
-	var parsed errors.Error
-	if err := proto.Unmarshal(data, &parsed); err != nil {
-		t.Fatalf("proto.Unmarshal failed: %v", err)
+	if err := proto.Unmarshal(data, output); err != nil {
+		t.Fatalf("unmarshal: %v", err)
 	}
-
-	if parsed.GetStatus() != orig.GetStatus() ||
-		parsed.GetReason() != orig.GetReason() ||
-		parsed.GetMessage() != orig.GetMessage() {
-		t.Errorf("roundtrip mismatch: got %+v, want %+v", &parsed, orig)
-	}
-}
-
-func TestErrorExtensions(t *testing.T) {
-	enumOpts := &descriptorpb.EnumOptions{}
-	proto.SetExtension(enumOpts, errors.E_DefaultStatus, int32(500))
-
-	if !proto.HasExtension(enumOpts, errors.E_DefaultStatus) {
-		t.Fatal("expected DefaultStatus extension")
-	}
-	val := proto.GetExtension(enumOpts, errors.E_DefaultStatus).(int32)
-	if val != 500 {
-		t.Errorf("expected 500, got %d", val)
-	}
-
-	valOpts := &descriptorpb.EnumValueOptions{}
-	errVal := &errors.Error{Status: 403, Reason: "FORBIDDEN", Message: "Access denied"}
-	proto.SetExtension(valOpts, errors.E_Options, errVal)
-
-	if !proto.HasExtension(valOpts, errors.E_Options) {
-		t.Fatal("expected Options extension")
-	}
-	got := proto.GetExtension(valOpts, errors.E_Options).(*errors.Error)
-	if got.GetStatus() != 403 || got.GetReason() != "FORBIDDEN" || got.GetMessage() != "Access denied" {
-		t.Errorf("unexpected error option: %+v", got)
+	if !proto.Equal(output, input) {
+		t.Errorf("round trip mismatch:\n got: %v\nwant: %v", output, input)
 	}
 }
