@@ -1,26 +1,22 @@
-name: Verify
+name: Test
 
 permissions:
   contents: read
 
 on:
   push:
-    branches: ["master"]
+    branches: [master]
   pull_request:
-    branches: ["master"]
+    branches: [master]
 
 jobs:
-  verify:
+  test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
-          cache: true
-      - name: Install Buf
-        run: go install github.com/bufbuild/buf/cmd/buf@v1.72.0
-      - name: Verify
-        run: make verify
+          cache-dependency-path: "**/go.sum"
+      - name: Test
+        run: make test
