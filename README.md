@@ -120,7 +120,7 @@ plugins:
 
 When used with `protoc-gen-sphere-errors`, the following Go methods are generated for each error enum:
 
-- `Error() string` - Returns the reason if specified, otherwise \"EnumName_VALUE_NAME\"
+- `Error() string` - Returns the reason if specified, otherwise `"EnumName_VALUE_NAME"`
 - `GetCode() int32` - Returns the error code (enum numeric value)
 - `GetStatus() int32` - Returns the HTTP status code
 - `GetMessage() string` - Returns the human-readable message
