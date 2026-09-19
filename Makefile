@@ -8,7 +8,8 @@ DIRECT_DEPS_TEMPLATE := {{if and (not .Main) (not .Indirect) (not .Replace)}}{{.
 .PHONY: deps-update tidy fmt test lint check verify breaking generate
 
 deps-update:
-	@deps="$$(GOWORK=off $(GO) list -m -f '$(DIRECT_DEPS_TEMPLATE)' all)"; \
+	@GOWORK=off $(GO) mod tidy; \
+	deps="$$(GOWORK=off $(GO) list -m -f '$(DIRECT_DEPS_TEMPLATE)' all)"; \
 	if [ -n "$$deps" ]; then GOWORK=off $(GO) get -u $$deps; fi
 	GOWORK=off $(GO) mod tidy
 
