@@ -1,4 +1,4 @@
-name: Test
+name: CI
 
 permissions:
   contents: read
@@ -18,5 +18,19 @@ jobs:
         with:
           go-version-file: go.mod
           cache-dependency-path: "**/go.sum"
+      # Pinned so a new buf release cannot turn a green branch red on its own.
+      - name: Install Buf
+        env:
+          GOTOOLCHAIN: auto
+        run: go install github.com/bufbuild/buf/cmd/buf@v1.73.0
+      # The proto module ships to buf.build: verify it lints and compiles
+      # before the Go side is even reached.
+      - name: Check protos
+        run: make buf-check
+      - name: Check dependencies
+        run: make tidy-check
+      # Library module: compile the generated Go, then run its tests.
+      - name: Build
+        run: make build
       - name: Test
         run: make test

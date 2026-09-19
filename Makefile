@@ -9,7 +9,7 @@ DIRECT_ORIGIN := GOPRIVATE=github.com/go-sphere/*
 
 .DEFAULT_GOAL := check
 
-.PHONY: deps-update tidy fmt test lint check verify breaking generate
+.PHONY: deps-update tidy tidy-check fmt build test lint buf-check check verify breaking generate
 
 deps-update:
 	@GOWORK=off $(DIRECT_ORIGIN) $(GO) mod tidy; \
@@ -20,10 +20,18 @@ deps-update:
 tidy:
 	GOWORK=off $(GO) mod tidy
 
+# Non-mutating counterpart of tidy, for CI: fails if go.mod/go.sum are not
+# what a consumer would resolve.
+tidy-check:
+	GOWORK=off $(GO) mod tidy -diff
+
 fmt:
 	$(GO) fmt ./...
 	$(GOLANGCI_LINT) fmt --no-config --enable gofmt --enable goimports
 	buf format -w
+
+build:
+	$(GO) build ./...
 
 test:
 	$(GO) test ./...
@@ -32,10 +40,15 @@ lint:
 	$(GOLANGCI_LINT) fmt --no-config --enable gofmt --enable goimports --diff
 	$(GO) vet ./...
 	$(GOLANGCI_LINT) run --no-config
-	buf lint
+	$(MAKE) buf-check
 
-check:
-	GOWORK=off $(GO) mod tidy -diff
+# The proto module is the published artifact: lint it for style and compile it
+# so a bad import or descriptor never reaches buf.build.
+buf-check:
+	buf lint
+	buf build
+
+check: tidy-check
 	$(MAKE) lint
 	$(MAKE) test
 
