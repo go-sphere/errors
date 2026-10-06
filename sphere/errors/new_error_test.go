@@ -37,8 +37,8 @@ func TestNewErrorFields(t *testing.T) {
 	cause := stderrors.New("db: connection refused")
 	err := errors.NewError(503, 1001, "service unavailable", cause)
 
-	var he httpxError
-	if !stderrors.As(err, &he) {
+	he, ok := stderrors.AsType[httpxError](err)
+	if !ok {
 		t.Fatalf("NewError result %T does not implement the httpx Error interface", err)
 	}
 	if got := he.GetStatus(); got != 503 {
@@ -86,8 +86,8 @@ func TestNewErrorNilErrUsesStatusText(t *testing.T) {
 
 func TestNewErrorKeepsMessageAsGiven(t *testing.T) {
 	err := errors.NewError(400, 1, "", stderrors.New("detail"))
-	var me messageError
-	if !stderrors.As(err, &me) {
+	me, ok := stderrors.AsType[messageError](err)
+	if !ok {
 		t.Fatal("NewError result does not implement GetMessage")
 	}
 	if got := me.GetMessage(); got != "" {
@@ -97,12 +97,10 @@ func TestNewErrorKeepsMessageAsGiven(t *testing.T) {
 
 func TestNewErrorFoundThroughWrapping(t *testing.T) {
 	err := fmt.Errorf("handler: %w", errors.NewError(409, 2002, "email exists", nil))
-	var se statusError
-	if !stderrors.As(err, &se) || se.GetStatus() != 409 {
+	if se, ok := stderrors.AsType[statusError](err); !ok || se.GetStatus() != 409 {
 		t.Fatalf("errors.As through fmt wrapping failed: %v", err)
 	}
-	var ce codeError
-	if !stderrors.As(err, &ce) || ce.GetCode() != 2002 {
+	if ce, ok := stderrors.AsType[codeError](err); !ok || ce.GetCode() != 2002 {
 		t.Fatalf("errors.As(CodeError) through fmt wrapping failed: %v", err)
 	}
 }
@@ -125,8 +123,8 @@ func TestNewErrorGeneratedJoinShape(t *testing.T) {
 	if !stderrors.Is(err, e) || !stderrors.Is(err, cause) {
 		t.Fatal("joined error does not match the enum value and the cause")
 	}
-	var he httpxError
-	if !stderrors.As(err, &he) {
+	he, ok := stderrors.AsType[httpxError](err)
+	if !ok {
 		t.Fatal("joined error does not implement the httpx Error interface")
 	}
 	if he.GetStatus() != 404 || he.GetCode() != 2001 || he.GetMessage() != "user not found" {
