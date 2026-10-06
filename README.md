@@ -142,6 +142,33 @@ if err != nil {
 return nil, apiv1.UserError_USER_ERROR_NOT_FOUND.JoinWithMessage("User ID: 123 not found", err)
 ```
 
+## Go Runtime: `NewError`
+
+The Go package `github.com/go-sphere/errors/sphere/errors` (the same package as
+the generated extension types, which every `.pb.go` importing
+`sphere/errors/errors.proto` already links) also provides the constructor that
+the generated `Join` and `JoinWithMessage` helpers call by default:
+
+```go
+func NewError(status, code int32, message string, err error) error
+```
+
+- The returned error implements `Error() string`, `Unwrap() error`,
+  `GetStatus() int32`, `GetCode() int32` and `GetMessage() string`.
+- `Error()` returns `err.Error()`, and `Unwrap()` returns `err`, so
+  `errors.Is`/`errors.As` see the enum value and every joined cause.
+- When `err` is nil, a default error with the text `http.StatusText(status)` is
+  used (`"Unknown error"` when the status has no standard text).
+- `message` is stored as given; no fallback is applied.
+
+These semantics match `httpx.NewError`. Adapters such as
+[`github.com/go-sphere/httpx`](https://github.com/go-sphere/httpx) classify
+errors through the `GetStatus`/`GetCode`/`GetMessage` methods rather than a
+concrete type, so `httpx.ParseError`, `ClassifyError` and `RenderError` treat
+the result exactly like an `httpx.NewError` value. Packages that only define
+error codes therefore depend on this module (stdlib and protobuf only), not on
+an HTTP adapter.
+
 ## Error Configuration Options
 
 ### Enum Level Options
