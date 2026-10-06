@@ -24,24 +24,29 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-// Error defines error metadata for an enum value, specifying its HTTP status code,
-// reason identifier, and user-facing error message.
+// Error is the error metadata attached to one enum value through the
+// (sphere.errors.options) extension: its HTTP status code, machine-readable
+// reason, and user-facing message.
 //
-// Preconditions: status must be a valid HTTP status code (100-599). When status is 0,
-// code generators fall back to default_status, or 500 if default_status is unset.
-// Concurrency: Protobuf messages are not safe for concurrent mutation. Read-only access is safe.
-// Lifecycle: Instances returned by proto.GetExtension are shared descriptor values; do not mutate in-place.
-// Error semantics: Enum value 0 (<ENUM>_UNSPECIFIED) is reserved as non-error; returning it defaults to 500 Unknown.
-// Side-effects: Pure data definition; no background tasks or context manipulation.
+// protoc-gen-sphere-errors reads it only for enums that also set
+// (sphere.errors.default_status). Unset fields fall back as described on each
+// field. Enum value 0 (<ENUM>_UNSPECIFIED) means "no error": it gets no mapped
+// error, so its options are ignored and the generated methods report 500.
+//
+// Values returned by proto.GetExtension belong to the descriptor; read them,
+// but do not mutate them.
 type Error struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// status is the HTTP status code (e.g. 400, 404, 500). If 0, code generators fall back
-	// to the enclosing enum's default_status (or 500 if unset). Valid range is 100-599.
+	// status is the HTTP status code (100-599) reported by the generated
+	// GetStatus method, e.g. 400 or 404. If 0, the enclosing enum's
+	// default_status is used.
 	Status int32 `protobuf:"varint,1,opt,name=status,proto3" json:"status,omitempty"`
-	// reason is a machine-readable error code or reason string (e.g. "USER_NOT_FOUND").
-	// If empty, code generators derive it from the enum and value name.
+	// reason is the machine-readable text returned by the generated Error
+	// method, e.g. "USER_NOT_FOUND". If empty, it is "<EnumName>:<VALUE_NAME>".
 	Reason string `protobuf:"bytes,2,opt,name=reason,proto3" json:"reason,omitempty"`
-	// message is a human-readable, user-facing error message.
+	// message is the human-readable, user-facing message reported by the
+	// generated GetMessage method. If empty, GetMessage returns "" and the
+	// generated Join helper uses the Error text instead.
 	Message       string `protobuf:"bytes,3,opt,name=message,proto3" json:"message,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -119,10 +124,9 @@ var file_sphere_errors_errors_proto_extTypes = []protoimpl.ExtensionInfo{
 
 // Extension fields to descriptorpb.EnumOptions.
 var (
-	// default_status specifies the fallback HTTP status code for all error values
-	// defined within this enum that do not specify their own status.
-	// Preconditions: Must be a valid HTTP status code (100-599).
-	// Concurrency: Extension descriptors are immutable after registration in init().
+	// default_status marks an enum as an error enum for protoc-gen-sphere-errors
+	// and sets the HTTP status code (100-599) for its values that do not set
+	// their own status. Enums without this option get no generated error methods.
 	//
 	// optional int32 default_status = 18534200;
 	E_DefaultStatus = &file_sphere_errors_errors_proto_extTypes[0]
@@ -130,9 +134,8 @@ var (
 
 // Extension fields to descriptorpb.EnumValueOptions.
 var (
-	// options configures status, reason, and message metadata for this specific enum value.
-	// Preconditions: Target Error message must provide valid status/reason/message fields.
-	// Concurrency: Extension descriptors are immutable after registration in init().
+	// options sets the status, reason, and message of one error enum value. It
+	// has no effect unless the enclosing enum sets (sphere.errors.default_status).
 	//
 	// optional sphere.errors.Error options = 18534210;
 	E_Options = &file_sphere_errors_errors_proto_extTypes[1]
