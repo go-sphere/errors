@@ -54,8 +54,14 @@ check: tidy-check
 
 verify: check breaking
 
+LATEST_TAG := $(shell git describe --tags --abbrev=0 2>/dev/null)
+
 breaking:
-	buf breaking . --against '.git#tag=v0.0.1'
+	@if [ -z "$(LATEST_TAG)" ]; then \
+		echo "error: no git tags found to run buf breaking against (ensure tags are fetched, e.g. fetch-depth: 0)" >&2; \
+		exit 1; \
+	fi
+	buf breaking . --against ".git#tag=$(LATEST_TAG)"
 
 generate:
 	buf generate

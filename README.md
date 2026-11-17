@@ -111,6 +111,9 @@ managed:
     - file_option: go_package_prefix
       module: buf.build/go-sphere/errors
 plugins:
+  - local: protoc-gen-go
+    out: api
+    opt: paths=source_relative
   - local: protoc-gen-sphere-errors
     out: api
     opt: paths=source_relative
@@ -120,7 +123,7 @@ plugins:
 
 When used with `protoc-gen-sphere-errors`, the following Go methods are generated for each error enum:
 
-- `Error() string` - Returns the reason if specified, otherwise `"EnumName_VALUE_NAME"`
+- `Error() string` - Returns the reason if specified, otherwise `"EnumName:VALUE_NAME"`
 - `GetCode() int32` - Returns the error code (enum numeric value)
 - `GetStatus() int32` - Returns the HTTP status code
 - `GetMessage() string` - Returns the human-readable message
@@ -178,7 +181,7 @@ an HTTP adapter.
 ### Enum Value Options
 
 - `status`: HTTP status code (overrides default_status)
-- `reason`: Optional machine-readable reason code (used as the Error() string when provided; otherwise uses "EnumName_VALUE_NAME")
+- `reason`: Optional machine-readable reason code (used as the Error() string when provided; otherwise uses "EnumName:VALUE_NAME")
 - `message`: Human-readable error message for client display
 
 ## Best Practices

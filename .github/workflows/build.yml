@@ -14,6 +14,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
       - uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
@@ -23,14 +25,23 @@ jobs:
         env:
           GOTOOLCHAIN: auto
         run: go install github.com/bufbuild/buf/cmd/buf@v1.73.0
-      # The proto module ships to buf.build: verify it lints and compiles
-      # before the Go side is even reached.
+      # Pinned so a new golangci-lint release cannot turn a green branch red on its own.
+      - name: Install golangci-lint
+        env:
+          GOTOOLCHAIN: auto
+        run: go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.15.0
+      # The proto module ships to buf.build: verify it lints, compiles, and
+      # preserves wire/source compatibility before the Go side is reached.
       - name: Check protos
         run: make buf-check
+      - name: Check proto breaking changes
+        run: make breaking
       - name: Check dependencies
         run: make tidy-check
-      # Library module: compile the generated Go, then run its tests.
+      # Library module: compile the generated Go, lint, then run its tests.
       - name: Build
         run: make build
+      - name: Lint
+        run: make lint
       - name: Test
         run: make test
